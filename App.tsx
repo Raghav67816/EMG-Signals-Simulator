@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { StyleSheet, PermissionsAndroid, View, Text } from 'react-native';
-import RNBluetoothClassic, {
-  BluetoothDevice
-} from 'react-native-bluetooth-classic';
+import { StyleSheet, PermissionsAndroid, View, Text, Button } from 'react-native';
+import RNBluetoothClassic, { BluetoothDevice } from 'react-native-bluetooth-classic';
+import ComboBox from 'react-native-combobox';
+import { useState } from 'react';
 
 async function isBtEnabled() {
   const isEnabled = await RNBluetoothClassic.isBluetoothEnabled();
@@ -29,18 +29,49 @@ async function requestPerm() {
   }
 }
 
+async function connectToDevice(device: BluetoothDevice){
+  let connection = await  device.connect();
+  if (connection){
+    console.log("Connected successfully");
+  }
+  else{
+    console.error("failed to connect");
+  }
+}
+
 function App() {
+  const _normalDevices: string[] = [];
+  const [focusedDevice, setFocusedDevice] = useState('');
+  const [bdevices, setBDevices] = useState<BluetoothDevice[]>([]);
+  const [connectedDevices, setConnectedDevices] = useState<string[]>([]);
 
   useEffect(() => {
     const btInit = async () => {
       isBtEnabled();
     };
 
+    // get connected devices
+    const getDevices = async () => {
+      const devices: BluetoothDevice[] = await RNBluetoothClassic.getBondedDevices();
+      setBDevices(devices);
+      for (const device in devices){
+        _normalDevices.push(devices[device].name);
+      }
+      setConnectedDevices(_normalDevices);
+    }
+
     btInit();
+    getDevices();
+
   }, [])
   return (
-    <View style={styles.container}>
-
+    <View style={{ flex: 1, paddingVertical: 80, paddingHorizontal: 40, justifyContent: 'space-between' }}>
+      <ComboBox values={connectedDevices} onValueSelect={(index) => {
+        setFocusedDevice(connectedDevices[index]);
+      }}></ComboBox>
+      <Text>Selected Device: {focusedDevice}</Text>
+      <Button title={'Connect'} onPress={() => {
+      }}></Button>
     </View>
   );
 }
