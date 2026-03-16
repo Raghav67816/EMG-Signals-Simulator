@@ -14,6 +14,12 @@ async function isBtEnabled() {
   }
 }
 
+async function checkPermission(){
+  const hasPermission = await PermissionsAndroid.check('android.permission.BLUETOOTH_CONNECT');
+  if(hasPermission) return;
+  await requestPerm();
+}
+
 async function requestPerm() {
   const isGranted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT, {
     title: "Enabled Bluetooth",
@@ -42,19 +48,19 @@ async function connectToDevice(device: BluetoothDevice) {
 async function streamData(device: BluetoothDevice) {
   setInterval(() => {
     device.write(Math.random().toString());
-    device.clear()
+    console.log("writing data")
   }, 5) // 1kHz
 }
 
-// Custom Dark Theme for high contrast
+
 const theme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: '#BB86FC', // Soft purple for visibility
-    background: '#121212', // Deep dark gray
-    surface: '#1E1E1E', // Slightly lighter gray for cards
-    onSurface: '#FFFFFF', // High contrast text
+    primary: '#BB86FC',
+    background: '#121212',
+    surface: '#1E1E1E',
+    onSurface: '#FFFFFF',
   },
 };
 
@@ -70,8 +76,15 @@ function App() {
     }
 
     const initApp = async () => {
-      await isBtEnabled();
-      getDevices();
+      checkPermission().then(
+        out => {
+          isBtEnabled().then(
+            out2 => {
+              getDevices();
+            }
+          )
+        }
+      )
     }
 
     const connectSub = RNBluetoothClassic.onDeviceConnected((event) => {
@@ -129,7 +142,6 @@ function App() {
                     variant="bodyLarge"
                     style={[
                       styles.infoText,
-                      // { color: focusedDevice !== "Disconnected" ? '#03DAC6' : '#CF6679' }
                       { color: isConnected ? '#03DAC6' : '#CF6679' }
                     ]}
                   >
