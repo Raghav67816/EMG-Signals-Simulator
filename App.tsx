@@ -111,7 +111,7 @@ function App() {
 
           <View>
             <Text variant="headlineMedium" style={styles.headerText}>
-              Bluetooth Control
+              ADS1293 Simulator
             </Text>
 
             <View style={styles.section}>
