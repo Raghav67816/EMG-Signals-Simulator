@@ -36,7 +36,7 @@ async function connectToDevice(device: BluetoothDevice) {
   const isConnected = await device.isConnected();
   if (!isConnected) {
     try {
-      let connection = await device.connect({ connectorType: "rfcomm" });
+      let connection = await device.connect({ connectorType: "rfcomm", delimiter: "\n" });
       if (connection) { ToastAndroid.show("Connected", ToastAndroid.LONG); streamData(device); }
     } catch (e) {
       console.log(e);
@@ -47,9 +47,9 @@ async function connectToDevice(device: BluetoothDevice) {
 
 async function streamData(device: BluetoothDevice) {
   setInterval(() => {
-    device.write(Math.random().toString());
+    device.write(Math.random().toFixed(2) + "\n", "utf-8")
     console.log("writing data")
-  }, 5) // 1kHz
+  }, 5) // 200Hz
 }
 
 
