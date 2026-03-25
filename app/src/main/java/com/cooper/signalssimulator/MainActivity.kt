@@ -1,12 +1,16 @@
 package com.cooper.signalssimulator
 
 import android.Manifest
+import android.app.ComponentCaller
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,13 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.security.Permissions
 
 // UI DOES NOT HANDLE LOGIC IT HANDLES STATE - KEEP IN MIND (NOTE FOR ME)
 
@@ -55,14 +59,16 @@ data class UiState(
     val devices: Set<BluetoothDevice>? = emptySet(),
     var activeDevice: BluetoothDevice? = null,
     val isConnected: Boolean = false,
-    val bluetoothThread: BluetoothThread? = null
+    val bluetoothThread: BluetoothThread? = null,
+    var dataFileName: String = "",
+    var dataFileUri: Uri? = null
 )
 
 class UiStateManager(private val adapter: BluetoothAdapter): ViewModel(){
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun setDevices(){
         _uiState.update { devices ->
             devices.copy(
@@ -104,7 +110,15 @@ class UiStateManager(private val adapter: BluetoothAdapter): ViewModel(){
     }
 
     fun stopBluetoothThread(bluetoothThread: BluetoothThread){
-        bluetoothThread.cancel();
+        bluetoothThread.cancel()
+    }
+
+    fun setDataFileName(name: String){
+        _uiState.update { dataFileName ->
+            dataFileName.copy(
+                dataFileName = name
+            )
+        }
     }
 }
 
@@ -116,6 +130,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private var hasPermission by mutableStateOf(false)
+    val stateManager: UiStateManager by lazy {
+        UiStateManager(bluetoothAdapter)
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,10 +141,11 @@ class MainActivity : ComponentActivity() {
 
         checkPermission()
 
-        val stateManager = UiStateManager(bluetoothAdapter)
         setContent {
-            AppScreen(stateManager)
+            AppScreen(stateManager, { loadCsvFile() })
         }
+
+
     }
 
     // ✅ Permission Handling
@@ -167,11 +185,46 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun loadCsvFile(){
+        Log.i("CSV", "Opening Dialog")
+        val reqCode = 2
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(Intent.createChooser(intent, "Select Data File"), reqCode)
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+        caller: ComponentCaller
+    ) {
+        super.onActivityResult(requestCode, resultCode, data, caller)
+        try {
+            if(requestCode == 2 && resultCode == RESULT_OK){
+                val fileUri = data!!.data
+                if(fileUri != null){
+                    val docFile: DocumentFile? = DocumentFile.fromSingleUri(applicationContext, fileUri)
+                    if(docFile != null){
+                        stateManager.setDataFileName(docFile.name.toString())
+                        Log.i("CSV", docFile.name.toString())
+                    }
+                }
+            }
+        }
+
+        // if operation is cancelled
+        catch (e: RuntimeException){
+            Log.d("CSV", "Operation was cancelled.")
+        }
+    }
 }
 
 @Composable
-@androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-fun AppScreen(viewModel: UiStateManager) {
+@RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+fun AppScreen(viewModel: UiStateManager, onSelectFileClicked: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     var expanded by remember { mutableStateOf(false) }
@@ -279,6 +332,23 @@ fun AppScreen(viewModel: UiStateManager) {
                         color = if(state.isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Data File: ")
+                    Button(
+                        onClick = {
+                            onSelectFileClicked()
+                        },
+                        modifier = Modifier,
+                        enabled = !state.isConnected,
+                    ){
+                        Text(if(state.dataFileName == "") "Select File" else state.dataFileName)
+                    }
                 }
             }
         }

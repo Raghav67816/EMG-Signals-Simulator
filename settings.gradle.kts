@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Signals Simulator"
 include(":app")
+
