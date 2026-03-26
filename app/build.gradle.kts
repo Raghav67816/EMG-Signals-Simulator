@@ -39,6 +39,7 @@ android {
 
 dependencies {
     implementation("com.jsoizo:kotlin-csv:1.10.0")
+    implementation("org.jetbrains.kotlinx:dataframe-csv:1.0.0-Beta4")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

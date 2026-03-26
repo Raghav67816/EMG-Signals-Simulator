@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,6 +51,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.io.IOException
+import java.nio.ByteBuffer
 
 // UI DOES NOT HANDLE LOGIC IT HANDLES STATE - KEEP IN MIND (NOTE FOR ME)
 
@@ -61,7 +62,10 @@ data class UiState(
     val isConnected: Boolean = false,
     val bluetoothThread: BluetoothThread? = null,
     var dataFileName: String = "",
-    var dataFileUri: Uri? = null
+    var dataFileUri: Uri? = null,
+    var ch1: FloatArray = floatArrayOf(),
+    var ch2: FloatArray = floatArrayOf(),
+    var isRunning: Boolean = true
 )
 
 class UiStateManager(private val adapter: BluetoothAdapter): ViewModel(){
@@ -119,6 +123,17 @@ class UiStateManager(private val adapter: BluetoothAdapter): ViewModel(){
                 dataFileName = name
             )
         }
+    }
+
+    fun writeData(data: Pair<FloatArray, FloatArray>){
+        _uiState.update {
+            it.copy(
+                ch1 = data.first,
+                ch2 = data.second
+            )
+        }
+
+        Log.d("DATA", "Channel data written to arrays.")
     }
 }
 
@@ -210,6 +225,8 @@ class MainActivity : ComponentActivity() {
                     if(docFile != null){
                         stateManager.setDataFileName(docFile.name.toString())
                         Log.i("CSV", docFile.name.toString())
+                        val data = readCsvFile(fileUri)
+                        stateManager.writeData(data)
                     }
                 }
             }
@@ -219,6 +236,35 @@ class MainActivity : ComponentActivity() {
         catch (e: RuntimeException){
             Log.d("CSV", "Operation was cancelled.")
         }
+    }
+
+    // we have a csv file
+    // format is as follows:
+    // index
+    // ignore first row
+    // split (delimiter  ",")
+    // write to buffer
+    fun readCsvFile(fileUri: Uri): Pair<FloatArray, FloatArray>{
+        val ch1 = mutableListOf<Float>()
+        val ch2 = mutableListOf<Float>()
+
+        try{
+            val inputStream = contentResolver.openInputStream(fileUri)
+            inputStream?.bufferedReader()?.useLines { lines ->
+                lines.forEach { line ->
+                    val parts = line.split(",")
+
+                    ch1.add(parts[1].trim().toFloat())
+                    ch2.add(parts[2].trim().toFloat())
+                }
+            }
+        }
+
+        catch(e: IOException){
+            Log.e("CSV", "Error reading csv file")
+        }
+
+        return Pair(ch1.toFloatArray(), ch2.toFloatArray())
     }
 }
 
