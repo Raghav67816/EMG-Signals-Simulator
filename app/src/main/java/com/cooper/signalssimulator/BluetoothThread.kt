@@ -29,11 +29,12 @@ class BluetoothThread(
     override fun run() {
         try{
             var index = 0 // track of position
-            val buffer: ByteBuffer = ByteBuffer.allocate(8) // 4-bytes (ch1) + 4-bytes (ch2)
+            val buffer: ByteBuffer = ByteBuffer.allocate(12) // 4-bytes (ch1) + 4-bytes (ch2) + 4 bytes (ch3)
             buffer.order(ByteOrder.LITTLE_ENDIAN)
 
             val ch1 = _uiState.uiState.value.ch1
             val ch2 = _uiState.uiState.value.ch2
+            val ch3 = _uiState.uiState.value.ch3
 
             _adapter.cancelDiscovery()
             bluetoothSocket?.connect()
@@ -44,6 +45,7 @@ class BluetoothThread(
 
                 buffer.putFloat(ch1[index])
                 buffer.putFloat(ch2[index])
+                buffer.putFloat(ch3[index])
                 index++
 
                 bluetoothSocket!!.outputStream.write(buffer.array())

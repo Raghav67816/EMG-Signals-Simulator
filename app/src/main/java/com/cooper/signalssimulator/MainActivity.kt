@@ -65,6 +65,7 @@ data class UiState(
     var dataFileUri: Uri? = null,
     var ch1: FloatArray = floatArrayOf(),
     var ch2: FloatArray = floatArrayOf(),
+    var ch3: FloatArray = floatArrayOf(),
     var isRunning: Boolean = true
 )
 
@@ -125,11 +126,12 @@ class UiStateManager(private val adapter: BluetoothAdapter): ViewModel(){
         }
     }
 
-    fun writeData(data: Pair<FloatArray, FloatArray>){
+    fun writeData(data: List<MutableList<Float>>){
         _uiState.update {
             it.copy(
-                ch1 = data.first,
-                ch2 = data.second
+                ch1 = data[0].toFloatArray(),
+                ch2 = data[1].toFloatArray(),
+                ch3 = data[2].toFloatArray()
             )
         }
 
@@ -244,9 +246,10 @@ class MainActivity : ComponentActivity() {
     // ignore first row
     // split (delimiter  ",")
     // write to buffer
-    fun readCsvFile(fileUri: Uri): Pair<FloatArray, FloatArray>{
+    fun readCsvFile(fileUri: Uri): List<MutableList<Float>>{
         val ch1 = mutableListOf<Float>()
         val ch2 = mutableListOf<Float>()
+        val ch3 = mutableListOf<Float>()
 
         try{
             val inputStream = contentResolver.openInputStream(fileUri)
@@ -256,6 +259,7 @@ class MainActivity : ComponentActivity() {
 
                     ch1.add(parts[1].trim().toFloat())
                     ch2.add(parts[2].trim().toFloat())
+                    ch3.add(parts[3].trim().toFloat())
                 }
             }
         }
@@ -264,7 +268,8 @@ class MainActivity : ComponentActivity() {
             Log.e("CSV", "Error reading csv file")
         }
 
-        return Pair(ch1.toFloatArray(), ch2.toFloatArray())
+        val arr = listOf(ch1, ch2, ch3)
+        return arr
     }
 }
 
