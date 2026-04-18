@@ -39,7 +39,6 @@ android {
 
 dependencies {
     implementation("com.jsoizo:kotlin-csv:1.10.0")
-    implementation("org.jetbrains.kotlinx:dataframe-csv:1.0.0-Beta4")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -51,6 +50,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.foundation.layout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

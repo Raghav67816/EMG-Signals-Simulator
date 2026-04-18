@@ -19,17 +19,16 @@ class BluetoothThread(
     private val _adapter: BluetoothAdapter = adapter
     private val _uiState = viewModel
     private val bluetoothSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-        device.createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+        device.createInsecureRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
     }
 
-    val interval = 1000000L
-    var nextTime = System.nanoTime()
-
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+//    Run transmitting data to pc
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN])
     override fun run() {
-        try{
-            var index = 0 // track of position
-            val buffer: ByteBuffer = ByteBuffer.allocate(12) // 4-bytes (ch1) + 4-bytes (ch2) + 4 bytes (ch3)
+        try {
+            var index = 0
+
+            val buffer = ByteBuffer.allocate(12)
             buffer.order(ByteOrder.LITTLE_ENDIAN)
 
             val ch1 = _uiState.uiState.value.ch1
@@ -38,36 +37,47 @@ class BluetoothThread(
 
             _adapter.cancelDiscovery()
             bluetoothSocket?.connect()
-            _uiState.updateConnectionStatus(if(bluetoothSocket != null) bluetoothSocket!!.isConnected else false)
 
-            while(_uiState.uiState.value.isRunning){
-                if(index >= ch1.size){index=0}
+            if (bluetoothSocket?.isConnected != true) {
+                Log.e("BT", "Connection failed")
+                return
+            }
 
+            _uiState.updateConnectionStatus(true)
+            Log.d("BT", "Connected")
+
+            val output = bluetoothSocket!!.outputStream
+
+            while (_uiState.uiState.value.isRunning) {
+
+                if (index >= ch1.size) index = 0
+
+                buffer.clear()
                 buffer.putFloat(ch1[index])
                 buffer.putFloat(ch2[index])
                 buffer.putFloat(ch3[index])
                 index++
 
-                bluetoothSocket!!.outputStream.write(buffer.array())
-                buffer.clear()
+                try {
+                    output.write(buffer.array())
+                } catch (e: IOException) {
+                    Log.e("BT", "Write failed - connection lost", e)
+                    break
+                }
 
-                // add 1 ms to current time
-                nextTime += interval
-                while(System.nanoTime() < nextTime){}
+                sleep(1)
             }
-        }
 
-        catch (e: SecurityException){
-            Log.e("BL", "Security exception occurred")
-            Log.e("BL", e.toString())
-        }
-
-        catch (e: IOException){
-            Log.e("SOCK", "Server not available.")
+        } catch (e: Exception) {
+            Log.e("BT", "Error in thread", e)
+        } finally {
+            cancel()
         }
     }
 
 
+    // Stop running
+    // update state to disconnected
     fun cancel(){
         try {
             bluetoothSocket?.close()
