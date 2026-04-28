@@ -22,13 +22,17 @@ class BluetoothThread(
         device.createInsecureRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
     }
 
+    private val startByte: Int = 0xAA;
+    private val stopByte: Int = 0xBB;
+
 //    Run transmitting data to pc
     @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN])
     override fun run() {
         try {
             var index = 0
+            var packetIndex = 0
 
-            val buffer = ByteBuffer.allocate(12)
+            val buffer = ByteBuffer.allocate(18)
             buffer.order(ByteOrder.LITTLE_ENDIAN)
 
             val ch1 = _uiState.uiState.value.ch1
@@ -53,9 +57,14 @@ class BluetoothThread(
                 if (index >= ch1.size) index = 0
 
                 buffer.clear()
+                buffer.put(startByte.toByte())
                 buffer.putFloat(ch1[index])
                 buffer.putFloat(ch2[index])
                 buffer.putFloat(ch3[index])
+                buffer.putInt(packetIndex)
+                buffer.put(stopByte.toByte())
+
+                packetIndex++
                 index++
 
                 try {
